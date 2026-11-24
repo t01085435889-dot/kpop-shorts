@@ -1,111 +1,210 @@
 #!/usr/bin/env python3
 """
 영상 바이럴 점수 계산 엔진 (여자 아이돌 / 남성 시청자 타겟)
-
-점수 구성:
-  - 바이럴 속도 (40%): views / 경과일
-  - 참여율     (25%): (likes+comments) / views × 100
-  - 최신성     (15%): 14일 이내 보너스
-  - 제목 패턴  (20%): 타겟 패턴 키워드 매칭
-
-필터:
-  - 조회수 10,000 이상
-  - 좋아요율 0.5% 이상
-  - 길이 60초 이하
-  - 90일 이내 업로드
+포커스: 의외의 글래머 · 반전 볼륨감 · 베이글 아이돌
 """
 
 from datetime import datetime, timedelta
 import math
 
-# ── 임계값 ────────────────────────────────────────────────────
 MIN_VIEWS      = 10_000
 MIN_LIKE_RATIO = 0.005
 MAX_DURATION   = 60
 MAX_AGE_DAYS   = 90
 VIRAL_WINDOW   = 14
 
-# ── 타겟 여자 아이돌 그룹 / 멤버 ──────────────────────────────
+# ── 타겟 아이돌 (제공 목록 전체 반영) ──────────────────────────
 FEMALE_IDOLS = [
-    # 그룹명
-    "aespa", "에스파", "IVE", "아이브", "LE SSERAFIM", "르세라핌",
-    "BLACKPINK", "블랙핑크", "TWICE", "트와이스", "NewJeans", "뉴진스",
-    "KISS OF LIFE", "키스오브라이프", "Red Velvet", "레드벨벳",
-    "ITZY", "있지", "NMIXX", "엔믹스", "Kep1er", "케플러",
-    "tripleS", "트리플에스", "ILLIT", "아일릿", "BABYMONSTER",
-    "fromis_9", "프로미스나인", "SECRET NUMBER",
-    # 인기 멤버
-    "카리나", "karina", "윈터", "winter", "닝닝", "지젤",
-    "안유진", "장원영", "wonyoung", "리즈", "가을", "이서",
-    "카즈하", "kazuha", "채원", "허윤진", "사쿠라",
-    "지수", "jisoo", "제니", "jennie", "로제", "rose", "리사", "lisa",
-    "사나", "sana", "나연", "nayeon", "쯔위", "tzuyu", "지효",
-    "민지", "하니", "hani", "다니엘", "혜인", "혜린",
-    "벨", "나티", "줄리", "소아",
-    "아이린", "슬기", "조이", "웬디",
-    "미야오", "miyao", "ella",
+    # === 한국 아이돌 그룹 ===
+    "aespa", "에스파",
+    "IVE", "아이브",
+    "LE SSERAFIM", "르세라핌",
+    "BLACKPINK", "블랙핑크",
+    "TWICE", "트와이스",
+    "NewJeans", "뉴진스",
+    "KISS OF LIFE", "키스오브라이프",
+    "Red Velvet", "레드벨벳",
+    "ITZY", "있지",
+    "NMIXX", "엔믹스",
+    "BABYMONSTER",
+    "tripleS", "트리플에스",
+    "ILLIT", "아일릿",
+    "Kep1er", "케플러",
+    "MAMAMOO", "마마무",
+    "오마이걸", "OH MY GIRL",
+    "브브걸", "BB Girls",
+    "에이핑크", "Apink",
+    "소녀시대", "Girls Generation",
+    "SNSD",
+    "있지", "ITZY",
+    "비비지", "VIVIZ",
+    "우주소녀", "WJSN",
+    "프로미스나인", "fromis_9",
+    "스테이씨", "STAYC",
+    "시그니처", "cignature",
+    "QWER",
+    "하츠투하츠",
+    "미야오", "Miyao",
+    "이즈나", "IZNA",
+    "키키", "Kiki",
+    "SECRET NUMBER",
+    "구구단", "gugudan",
+    "다이아", "DIA",
+    "아이즈원", "IZ*ONE",
+
+    # === 한국 멤버 (에스파) ===
+    "카리나", "karina", "닝닝", "윈터", "winter", "지젤",
+
+    # === 한국 멤버 (아이브) ===
+    "장원영", "wonyoung", "안유진", "리즈", "가을", "이서", "레이",
+
+    # === 한국 멤버 (르세라핌) ===
+    "카즈하", "kazuha", "허윤진", "김채원", "채원", "사쿠라", "eunchae",
+
+    # === 한국 멤버 (블랙핑크) ===
+    "제니", "jennie", "지수", "jisoo", "로제", "rose", "리사", "lisa",
+
+    # === 한국 멤버 (트와이스) ===
+    "사나", "sana", "나연", "nayeon", "쯔위", "tzuyu", "지효", "모모", "momo",
+    "다현", "정연", "채영", "미나",
+
+    # === 한국 멤버 (뉴진스) ===
+    "하니", "hani", "민지", "다니엘", "혜인", "혜린",
+
+    # === 한국 멤버 (키스오브라이프) ===
+    "벨", "나띠", "쥴리", "하늘",
+
+    # === 한국 멤버 (레드벨벳) ===
+    "아이린", "슬기", "조이", "웬디", "예리",
+
+    # === 한국 멤버 (있지) ===
+    "유나", "채령", "예지", "류진", "리아",
+
+    # === 한국 멤버 (엔믹스) ===
+    "설윤", "지우", "배이", "릴리", "해원", "규진",
+
+    # === 한국 멤버 (마마무) ===
+    "화사", "솔라", "문별", "휠인",
+
+    # === 한국 멤버 (오마이걸) ===
+    "아린", "유아", "미미",
+
+    # === 한국 멤버 (브브걸) ===
+    "유정", "민영",
+
+    # === 한국 멤버 (에이핑크) ===
+    "손나은", "오하영", "김남주",
+
+    # === 한국 멤버 (소녀시대) ===
+    "서현", "유리",
+
+    # === 한국 멤버 (우주소녀) ===
+    "보나", "수빈", "설아", "다영",
+
+    # === 한국 멤버 (비비지) ===
+    "은하", "신비", "엄지",
+
+    # === 한국 멤버 (프로미스나인) ===
+    "채영", "백지헌", "이나경", "송하영",
+
+    # === 한국 멤버 (케플러) ===
+    "샤오팅", "휴닝바히에",
+
+    # === 한국 멤버 (스테이씨) ===
+    "아이사", "재이",
+
+    # === 한국 멤버 (QWER) ===
+    "마젠타", "쵸단", "히나", "시연",
+
+    # === 한국 솔로 / 출신 ===
+    "권은비", "전소미", "청하", "선미", "화사", "유주",
+    "이채연", "미주", "강미나", "김세정", "정채연",
+    "강혜원", "김민주", "혼다 히토미",
+
+    # === 베이비몬스터 ===
+    "아사", "라미", "로라", "파리타", "치키타",
+
+    # === 아일릿 ===
+    "민주", "윤아", "모카",
+
+    # === 미야오 ===
+    "miyao", "ella", "미야오",
+
+    # === 일본 아이돌 그룹 ===
+    "노기자카46", "Nogizaka46",
+    "사쿠라자카46", "Sakurazaka46",
+    "히나타자카46", "Hinatazaka46",
+    "AKB48", "NMB48", "HKT48", "SKE48", "NGT48", "STU48",
+    "FRUITS ZIPPER",
+    "모닝구무스메", "Morning Musume",
+
+    # === 일본 아이돌 멤버 ===
+    "야마시타 미즈키", "타나카 미쿠",
+    "와다 미유", "죠니시 레이", "요코노 스미레",
+    "아오야마 히카루",
 ]
 
-# ── 히트 패턴 (남성 시청자 선호 기준) ─────────────────────────
+# ── 히트 패턴 (의외의 글래머 / 남성 시청자 타겟) ───────────────
 TITLE_PATTERNS = {
     "직캠_퍼포먼스": (
-        # 가장 높은 가중치 - 직캠은 남성 팬 핵심 콘텐츠
         ["직캠", "fancam", "세로캠", "4k", "4K", "직캠모음",
          "무대", "stage", "퍼포먼스", "performance", "choreography",
          "직촬", "직찍", "현장"],
         0.95,
     ),
-    "비주얼_비율": (
-        # hifunny 1.6M 패턴 - 외모/몸매 강조
-        ["비율", "비주얼", "예쁜", "pretty", "beautiful", "얼굴",
-         "미모", "미녀", "완벽", "화보", "top tier", "레전드 비주얼",
-         "몸매", "뒤태", "각선미", "허리"],
-        0.92,
+    "반전_글래머": (
+        # 핵심 포커스: 의외의 글래머 · 반전 볼륨감
+        ["반전", "의외", "글래머", "볼륨", "베이글", "베이글녀",
+         "숨겨진", "반전매력", "숨막히는", "충격", "대박 비율",
+         "unexpected", "hidden", "glamour", "volume"],
+        0.98,
+    ),
+    "비율_피지컬": (
+        # 비율 · 몸매 · 핫바디
+        ["비율", "비주얼", "피지컬", "핫바디", "몸매", "뒤태",
+         "각선미", "허리", "힙", "엉덩이", "S라인", "개미허리",
+         "탄탄", "근육", "복근", "허벅지",
+         "pretty", "beautiful", "top tier", "body", "figure"],
+        0.95,
     ),
     "댄스_섹시": (
-        # 댄스 + 매력적인 순간
         ["댄스", "dance", "춤", "안무", "choreography",
          "섹시", "sexy", "매력", "끈적", "치명적", "치명",
          "걸크러쉬", "girl crush", "파워풀", "강렬"],
         0.90,
     ),
-    "귀엽_발랄": (
-        ["귀여운", "cute", "귀염", "깜찍", "사랑스러운",
-         "lovely", "adorable", "웃음", "미소", "리액션",
-         "당황", "부끄러운", "수줍"],
-        0.75,
-    ),
     "황당_반전": (
-        # KIOFJUDY 3.4M 패턴
-        ["반전", "황당", "충격", "실화", "대박", "헐",
-         "unexpected", "shocking", "wtf", "crazy", "말실수",
+        ["황당", "충격", "실화", "대박", "헐",
+         "shocking", "wtf", "crazy", "말실수",
          "갑자기", "어떻게"],
         0.85,
     ),
     "궁금증_유발": (
-        # 숏뽕닷컴 "못하는 이유" 패턴
         ["이유", "때문에", "왜", "다른", "진짜", "못하는",
          "why", "reason", "차이", "비밀", "알고보니", "사실",
          "포기 못하는", "남다른"],
         0.80,
     ),
     "실력_감탄": (
-        # KIOFJUDY "음색으로 극락 감" 패턴
         ["극락", "레전드", "미쳤", "대단", "올라운더", "실력",
          "음색", "보법", "춤선", "legendary", "insane", "goat",
          "vocals", "best", "역대급"],
         0.78,
     ),
     "해외_시각": (
-        # 해외팬 반응 - 외국 시각으로 K팝 보기
         ["해외반응", "외국인", "reaction", "foreigner", "overseas",
          "foreign", "외국", "해외"],
         0.82,
     ),
+    "귀엽_발랄": (
+        ["귀여운", "cute", "귀염", "깜찍", "사랑스러운",
+         "lovely", "adorable", "웃음", "미소", "리액션",
+         "당황", "부끄러운", "수줍"],
+        0.72,
+    ),
 }
 
 
-# ── 날짜 유틸 ──────────────────────────────────────────────────
 def parse_date(s):
     if not s:
         return None
@@ -120,8 +219,6 @@ def days_since_upload(s):
         return 999
     return max((datetime.now() - dt).days, 1)
 
-
-# ── 개별 점수 ─────────────────────────────────────────────────
 def viral_speed(views, days_old):
     return views / max(days_old, 1)
 
@@ -153,17 +250,15 @@ def title_pattern_score(title: str) -> tuple:
                 matched.append(cat)
                 max_w = max(max_w, weight)
                 break
-    # 여자 아이돌 언급 보너스
     idol_bonus = 0.0
     for idol in FEMALE_IDOLS:
         if idol.lower() in t:
-            idol_bonus = 0.08
+            idol_bonus = 0.10  # 아이돌 이름 보너스 상향
             break
     bonus = min(len(set(matched)) * 0.05, 0.15) + idol_bonus
     return min(max_w + bonus, 1.0), list(set(matched))
 
 
-# ── 메인 점수 ─────────────────────────────────────────────────
 def compute_score(video: dict) -> dict:
     views    = video.get('view_count', 0) or 0
     likes    = video.get('like_count', 0) or 0
@@ -205,7 +300,6 @@ def compute_score(video: dict) -> dict:
     }
 
 
-# ── 필터 ──────────────────────────────────────────────────────
 def is_eligible(video: dict) -> tuple:
     views      = video.get('view_count', 0) or 0
     likes      = video.get('like_count', 0) or 0
@@ -260,12 +354,12 @@ if __name__ == '__main__':
 
     tests = [
         {'id':'a','title':'에스파 카리나 직캠 4K 세로캠 치명적인 댄스','view_count':850_000,'like_count':62_000,'comment_count':4_200,'duration':45,'upload_date':daysago(4)},
-        {'id':'b','title':'청바지 완판시키려는 에스파 카리나 뒤태 #shorts','view_count':302_000,'like_count':18_000,'comment_count':1_200,'duration':38,'upload_date':daysago(2)},
+        {'id':'b','title':'청바지 완판시키려는 에스파 카리나 뒤태 반전 볼륨감 #shorts','view_count':302_000,'like_count':18_000,'comment_count':1_200,'duration':38,'upload_date':daysago(2)},
         {'id':'c','title':'아이브 원영턴과 다른 마라맛 안유진 턴 #shorts','view_count':363_000,'like_count':21_000,'comment_count':1_800,'duration':38,'upload_date':daysago(3)},
-        {'id':'d','title':'What happens when your daughter is too pretty? Miyao Ella','view_count':1_600_000,'like_count':80_000,'comment_count':5_000,'duration':35,'upload_date':daysago(5)},
+        {'id':'d','title':'화사 의외의 글래머 반전 볼륨감 베이글','view_count':1_600_000,'like_count':80_000,'comment_count':5_000,'duration':35,'upload_date':daysago(5)},
         {'id':'e','title':'브랜드들이 블핑 포기 못하는 이유','view_count':899_000,'like_count':42_000,'comment_count':3_200,'duration':50,'upload_date':daysago(12)},
         {'id':'f','title':'르세라핌 카즈하 무대 직캠 legendary dance','view_count':520_000,'like_count':35_000,'comment_count':2_800,'duration':55,'upload_date':daysago(7)},
-        {'id':'g','title':'뉴진스 하니 귀여운 리액션 모음','view_count':180_000,'like_count':14_000,'comment_count':900,'duration':42,'upload_date':daysago(1)},
+        {'id':'g','title':'키스오브라이프 나띠 핫바디 비율 반전 shorts','view_count':180_000,'like_count':14_000,'comment_count':900,'duration':42,'upload_date':daysago(1)},
     ]
     ranked, filtered = rank_videos(tests, top_n=10)
     print_ranking(ranked)

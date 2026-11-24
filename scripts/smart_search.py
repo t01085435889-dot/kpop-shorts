@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-여자 아이돌 / 남성 시청자 타겟 스마트 탐색
+여자 아이돌 스마트 탐색 (의외의 글래머 · 반전 볼륨감 포커스)
 
 검색 전략:
-  1. 직캠·세로캠 (가장 높은 조회수 보장)
-  2. 비주얼·비율 충격 (hifunny 1.6M 패턴)
-  3. 댄스·퍼포먼스 하이라이트
-  4. 황당·반전·매력 순간 포착
-  5. 해외팬 반응
+  1. 반전·글래머 (핵심: 의외의 볼륨감, 베이글)
+  2. 직캠·세로캠 (고조회수 보장)
+  3. 비율·피지컬 (핫바디, S라인)
+  4. 댄스·퍼포먼스 하이라이트
+  5. 멤버 단독 (제공 목록 기반)
+  6. 해외반응
 """
 
 import json
@@ -22,52 +23,128 @@ from scoring_engine import rank_videos, print_ranking, FEMALE_IDOLS
 ANALYSIS_PATH = os.path.join(os.path.dirname(__file__), '..', 'logs', 'channel_analysis.json')
 LOGS_DIR      = os.path.join(os.path.dirname(__file__), '..', 'logs')
 
-# ── 타겟 그룹 (조회수 검증된 그룹만) ─────────────────────────
+# ── 타겟 그룹 (전체 목록) ─────────────────────────────────────
 TARGET_GROUPS = [
-    "aespa",        "에스파",
-    "IVE",          "아이브",
-    "LE SSERAFIM",  "르세라핌",
-    "BLACKPINK",    "블랙핑크",
-    "TWICE",        "트와이스",
-    "NewJeans",     "뉴진스",
+    # 4~5세대 (높은 조회수)
+    "aespa", "에스파",
+    "IVE", "아이브",
+    "LE SSERAFIM", "르세라핌",
+    "BLACKPINK", "블랙핑크",
+    "TWICE", "트와이스",
+    "NewJeans", "뉴진스",
     "KISS OF LIFE", "키스오브라이프",
-    "Red Velvet",   "레드벨벳",
-    "NMIXX",        "엔믹스",
-    "ILLIT",        "아일릿",
+    "ITZY", "있지",
+    "NMIXX", "엔믹스",
     "BABYMONSTER",
+    "ILLIT", "아일릿",
     "tripleS",
-    "Kep1er",
+    "Kep1er", "케플러",
+    # 3세대 (레전드급 반전 글래머)
+    "Red Velvet", "레드벨벳",
+    "MAMAMOO", "마마무",
+    "오마이걸",
+    "VIVIZ", "비비지",
+    "우주소녀",
+    "fromis_9", "프로미스나인",
+    "STAYC", "스테이씨",
+    # 반전 글래머 특화 그룹
+    "브브걸",
+    "에이핑크",
+    "소녀시대",
+    "QWER",
+    "cignature", "시그니처",
+    # 5세대 신인
+    "IZNA", "이즈나",
+    "Miyao", "미야오",
 ]
 
-# 영어 그룹명만 (해외 검색용)
 EN_GROUPS = [
-    "aespa", "IVE", "LE SSERAFIM", "BLACKPINK",
-    "TWICE", "NewJeans", "KISS OF LIFE", "Red Velvet",
-    "NMIXX", "ILLIT", "BABYMONSTER",
+    "aespa", "IVE", "LE SSERAFIM", "BLACKPINK", "TWICE", "NewJeans",
+    "KISS OF LIFE", "Red Velvet", "NMIXX", "ILLIT", "BABYMONSTER",
+    "MAMAMOO", "ITZY", "VIVIZ", "fromis_9", "STAYC", "Kep1er",
 ]
 
-# 인기 멤버 (단독 검색용)
-HOT_MEMBERS = [
-    "카리나", "karina",
-    "안유진", "장원영", "wonyoung",
-    "카즈하", "kazuha",
-    "제니", "jennie", "리사", "lisa",
-    "사나", "sana", "쯔위", "tzuyu",
-    "하니", "hani",
-    "벨",
+# ── 핵심 멤버 (의외의 글래머 목록 기반) ──────────────────────
+HOT_MEMBERS_KR = [
+    # 에스파
+    "카리나", "닝닝",
+    # 아이브
+    "장원영", "안유진", "리즈",
+    # 르세라핌
+    "카즈하", "허윤진",
+    # 블랙핑크
+    "제니", "지수", "리사", "로제",
+    # 트와이스
+    "사나", "쯔위", "모모", "지효",
+    # 키스오브라이프
+    "나띠", "쥴리", "벨",
+    # 레드벨벳
+    "조이", "슬기", "아이린", "예리",
+    # 있지
+    "유나", "채령",
+    # 마마무
+    "화사", "솔라",
+    # 오마이걸
+    "아린", "유아",
+    # 브브걸
+    "유정", "민영",
+    # 에이핑크
+    "손나은", "오하영", "김남주",
+    # 소녀시대
+    "서현", "유리",
+    # 우주소녀
+    "보나", "설아",
+    # 비비지
+    "은하", "신비", "엄지",
+    # 솔로
+    "화사", "권은비", "전소미", "청하", "선미",
+    # 뉴진스
+    "하니",
 ]
 
-EXCLUDE_KEYWORDS = ["광고", "sponsored", "라이브 방송", "live stream", "먹방", "브이로그", "vlog"]
+HOT_MEMBERS_EN = [
+    "karina", "wonyoung", "kazuha", "jennie", "lisa", "jisoo",
+    "sana", "tzuyu", "momo", "nayeon", "hani",
+]
+
+EXCLUDE_KEYWORDS = [
+    "광고", "sponsored", "라이브 방송", "live stream",
+    "먹방", "브이로그", "vlog", "게임", "광고영상",
+]
 
 
 def build_search_queries(extra_keywords: list = None) -> list:
     queries = []
 
-    # ── 카테고리 1: 직캠·세로캠 (최우선) ────────────────────────
-    for group in TARGET_GROUPS[:10]:
+    # ── 카테고리 1: 반전·글래머 (최우선) ──────────────────────
+    for member in HOT_MEMBERS_KR[:15]:
+        queries.append(f"{member} 반전 볼륨감 shorts")
+        queries.append(f"{member} 글래머 비율 shorts")
+    queries += [
+        "여자아이돌 의외의 글래머 shorts",
+        "아이돌 반전 볼륨감 shorts",
+        "여자아이돌 베이글녀 shorts",
+        "아이돌 숨겨진 볼륨 shorts",
+        "여자아이돌 반전매력 볼륨감 shorts",
+        "kpop idol unexpected glamour shorts",
+        "kpop female idol hidden volume shorts",
+        "아이돌 의외의 비율 shorts",
+        "여자아이돌 글래머 반전 shorts",
+        "화사 볼륨감 shorts",
+        "권은비 볼륨 shorts",
+        "나띠 비율 shorts",
+        "유나 있지 비율 shorts",
+        "손나은 반전 shorts",
+        "아린 오마이걸 반전 shorts",
+        "서현 반전 글래머 shorts",
+        "브브걸 볼륨감 shorts",
+    ]
+
+    # ── 카테고리 2: 직캠·세로캠 ───────────────────────────────
+    for group in TARGET_GROUPS[:12]:
         queries.append(f"{group} 직캠 shorts")
+    for group in EN_GROUPS[:8]:
         queries.append(f"{group} fancam shorts")
-    for group in EN_GROUPS[:6]:
         queries.append(f"{group} 4K fancam vertical shorts")
     queries += [
         "여자아이돌 직캠 모음 shorts",
@@ -75,20 +152,24 @@ def build_search_queries(extra_keywords: list = None) -> list:
         "아이돌 세로캠 4K shorts",
     ]
 
-    # ── 카테고리 2: 비주얼·비율 (hifunny 패턴) ─────────────────
-    for group in TARGET_GROUPS[:8]:
-        queries.append(f"{group} 비주얼 shorts")
-    for member in HOT_MEMBERS[:8]:
+    # ── 카테고리 3: 비율·핫바디 ──────────────────────────────
+    for group in TARGET_GROUPS[:10]:
+        queries.append(f"{group} 비율 shorts")
+    for member in HOT_MEMBERS_KR[:12]:
         queries.append(f"{member} 비율 shorts")
     queries += [
         "여자아이돌 비율 레전드 shorts",
-        "kpop idol pretty moments shorts",
-        "아이돌 미모 충격 shorts",
-        "female idol visual compilation shorts",
+        "아이돌 핫바디 shorts",
+        "여자아이돌 S라인 비율 shorts",
+        "아이돌 몸매 반전 shorts",
+        "kpop idol body ratio shorts",
+        "female idol figure shorts",
+        "여자아이돌 각선미 shorts",
+        "아이돌 허리 비율 shorts",
     ]
 
-    # ── 카테고리 3: 댄스·퍼포먼스 ──────────────────────────────
-    for group in EN_GROUPS[:6]:
+    # ── 카테고리 4: 댄스·퍼포먼스 ───────────────────────────
+    for group in EN_GROUPS[:8]:
         queries.append(f"{group} dance performance shorts")
     queries += [
         "여자아이돌 댄스 치명적 shorts",
@@ -96,21 +177,17 @@ def build_search_queries(extra_keywords: list = None) -> list:
         "아이돌 안무 명장면 shorts",
         "여자아이돌 걸크러쉬 무대 shorts",
         "kpop female idol powerful stage shorts",
+        "여자아이돌 섹시댄스 shorts",
     ]
 
-    # ── 카테고리 4: 매력 순간 포착 (반전·황당) ─────────────────
-    for group in TARGET_GROUPS[:6]:
-        queries.append(f"{group} 황당 반응 shorts")
-    queries += [
-        "아이돌 반전 매력 shorts",
-        "kpop idol unexpected charming moment shorts",
-        "여자아이돌 치명적 순간 shorts",
-        "아이돌 귀여운 반응 모음 shorts",
-        "kpop idol cute reaction compilation shorts",
-    ]
+    # ── 카테고리 5: 멤버 단독 (제공 목록 전체) ──────────────
+    for member in HOT_MEMBERS_KR:
+        queries.append(f"{member} shorts")
+    for member in HOT_MEMBERS_EN:
+        queries.append(f"{member} shorts")
 
-    # ── 카테고리 5: 해외반응 ────────────────────────────────────
-    for group in EN_GROUPS[:5]:
+    # ── 카테고리 6: 해외반응 ─────────────────────────────────
+    for group in EN_GROUPS[:6]:
         queries.append(f"{group} foreigner reaction shorts")
     queries += [
         "kpop female idol reaction shorts",
@@ -118,16 +195,11 @@ def build_search_queries(extra_keywords: list = None) -> list:
         "non kpop fan reacts female idol shorts",
     ]
 
-    # ── 카테고리 6: 멤버 단독 ───────────────────────────────────
-    for member in HOT_MEMBERS[:10]:
-        queries.append(f"{member} shorts")
-
-    # ── 추가 키워드 ─────────────────────────────────────────────
+    # ── 추가 키워드 ──────────────────────────────────────────
     if extra_keywords:
         for kw in extra_keywords:
             queries.insert(0, f"{kw} shorts")
 
-    # 중복 제거
     seen, unique = set(), []
     for q in queries:
         if q not in seen:
@@ -189,7 +261,7 @@ def run_smart_search(max_per_query: int = 15, top_n: int = 20,
 
     if verbose:
         print(f"\n검색 쿼리 {len(queries)}개")
-        cats = ["직캠·세로캠", "비주얼·비율", "댄스·퍼포먼스", "매력순간", "해외반응", "멤버단독"]
+        cats = ["반전글래머", "직캠·세로캠", "비율·핫바디", "댄스·퍼포먼스", "멤버단독", "해외반응"]
         print(f"  카테고리: {' / '.join(cats)}")
         print("  예시:")
         for q in queries[:6]:
@@ -222,7 +294,6 @@ def run_smart_search(max_per_query: int = 15, top_n: int = 20,
         print(f"필터 탈락: {len(filtered)}개 | 최종 선별: {len(ranked)}개")
         print_ranking(ranked)
 
-        # 패턴 분포
         dist = {}
         for v in ranked:
             for p in v.get('matched_patterns', []):
@@ -268,7 +339,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("여자 아이돌 쇼츠 스마트 탐색")
+    print("여자 아이돌 쇼츠 스마트 탐색 (반전 글래머 포커스)")
     print("=" * 60)
 
     ranked = run_smart_search(
