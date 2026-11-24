@@ -1,0 +1,46 @@
+{
+  "reference_channels": [
+    {
+      "name": "KIOFJUDY",
+      "url": "https://www.youtube.com/@KIOFJUDY/shorts",
+      "handle": "@KIOFJUDY",
+      "category": "아이돌"
+    },
+    {
+      "name": "연예덕후",
+      "url": "https://www.youtube.com/@연예덕후/shorts",
+      "handle": "@연예덕후",
+      "category": "아이돌·연예"
+    },
+    {
+      "name": "Iso_iso",
+      "url": "https://www.youtube.com/@iso_10ve/shorts",
+      "handle": "@iso_10ve",
+      "category": "예능재편집·연예근황"
+    },
+    {
+      "name": "숏뽕닷컴",
+      "url": "https://www.youtube.com/@숏뽕닷컴/shorts",
+      "handle": "@숏뽕닷컴",
+      "category": "아이돌·K팝해외반응"
+    },
+    {
+      "name": "hifunny",
+      "url": "https://www.youtube.com/@highfunny7/shorts",
+      "handle": "@highfunny7",
+      "category": "아이돌"
+    }
+  ],
+  "output_settings": {
+    "format": "shorts",
+    "resolution": "1080x1920",
+    "aspect_ratio": "9:16",
+    "max_duration": 60,
+    "fps": 30
+  },
+  "download_settings": {
+    "max_videos_per_channel": 10,
+    "min_views": 10000,
+    "sort_by": "views"
+  }
+}

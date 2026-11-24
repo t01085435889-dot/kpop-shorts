@@ -1,0 +1,8 @@
+downloads/
+output/
+logs/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.log
