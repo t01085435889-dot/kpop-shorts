@@ -18,6 +18,7 @@
 # ============================================================
 
 set -e
+# --channel-mode: 레퍼런스 채널에서 직접 다운로드 (권장)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG_FILE="$SCRIPT_DIR/logs/pipeline_$(date +%Y%m%d_%H%M%S).log"
@@ -41,6 +42,7 @@ ANALYZE=true
 DOWNLOAD=true
 CONVERT=true
 SMART_MODE=false
+CHANNEL_MODE=false
 USE_CACHED=""
 CHANNEL_FILTER=""
 COUNT=10
@@ -60,6 +62,8 @@ while [[ $# -gt 0 ]]; do
             ANALYZE=false; DOWNLOAD=false; shift ;;
         --smart)
             SMART_MODE=true; shift ;;
+        --channel-mode)
+            CHANNEL_MODE=true; shift ;;
         --use-cached)
             USE_CACHED="--use-cached"; shift ;;
         --channel)
@@ -130,7 +134,17 @@ run_analyze() {
 
 # ── STEP 2: 영상 다운로드 ─────────────────────────────────────
 run_download() {
-    if $SMART_MODE; then
+    if $CHANNEL_MODE; then
+        info "STEP 2/3: 레퍼런스 채널 직접 다운로드 (채널당 ${COUNT}개)"
+        echo "────────────────────────────────────────────────────────"
+        echo "  채널: KIOFJUDY / 연예덕후 / Iso_iso / 숏뽕닷컴 / hifunny"
+        echo ""
+
+        python3 "$SCRIPT_DIR/scripts/channel_download.py" \
+            --count "$COUNT" \
+            2>&1 | tee -a "$LOG_FILE"
+
+    elif $SMART_MODE; then
         info "STEP 2/3: 스마트 탐색 & 다운로드 (바이럴 점수 기반, 상위 ${COUNT}개)"
         echo "────────────────────────────────────────────────────────"
         echo "  선별 기준:"

@@ -5,7 +5,7 @@
 사용자가 "작업해줘"라고 하면 아래 명령어를 즉시 실행한다:
 
 ```bash
-cd ~/kpop-shorts && ./pipeline.sh --smart --count 10
+cd ~/kpop-shorts && ./pipeline.sh --channel-mode --count 5
 ```
 
 완료 후 output/ 폴더에 생성된 쇼츠 파일 목록을 보여준다.
@@ -20,8 +20,9 @@ cd ~/kpop-shorts && ./pipeline.sh --smart --count 10
 
 | 작업 | 명령어 |
 |------|--------|
-| 기본 작업 (10개) | `./pipeline.sh --smart --count 10` |
-| 많이 받기 (20개) | `./pipeline.sh --smart --count 20` |
+| 채널 직접 다운 (채널당 5개) | `./pipeline.sh --channel-mode --count 5` |
+| 채널 직접 다운 (채널당 10개) | `./pipeline.sh --channel-mode --count 10` |
+| 스마트 검색 모드 | `./pipeline.sh --smart --count 10` |
 | 특정 키워드 | `./pipeline.sh --smart --count 10 --keywords 화사 볼륨` |
 | 다운로드만 | `./pipeline.sh --smart --download-only --count 10` |
 | 변환만 | `./pipeline.sh --convert-only` |
