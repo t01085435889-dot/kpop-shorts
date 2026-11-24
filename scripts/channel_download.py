@@ -12,11 +12,12 @@ import sys
 import argparse
 
 CHANNELS = [
+    # 고조회수 핵심 채널
     {"name": "KIOFJUDY",    "url": "https://www.youtube.com/@KIOFJUDY/shorts"},
-    {"name": "연예덕후",     "url": "https://www.youtube.com/@yydukhu/shorts"},
-    {"name": "Iso_iso",     "url": "https://www.youtube.com/@Iso_iso/shorts"},
-    {"name": "숏뽕닷컴",    "url": "https://www.youtube.com/@shortppong/shorts"},
     {"name": "hifunny",     "url": "https://www.youtube.com/@hifunny/shorts"},
+    {"name": "숏뽕닷컴",    "url": "https://www.youtube.com/@shortppong/shorts"},
+    {"name": "연예덕후",     "url": "https://www.youtube.com/@yydukhu/shorts"},
+    # Iso_iso는 아이돌 무관 채널 (연예인 이혼·예능) → 제외
 ]
 
 DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), '..', 'downloads', 'channels')

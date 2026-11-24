@@ -117,7 +117,25 @@ EXCLUDE_KEYWORDS = [
 def build_search_queries(extra_keywords: list = None) -> list:
     queries = []
 
-    # ── 카테고리 1: 방송 순간포착 + 상체 포커스 (최우선) ────────
+    # ── 카테고리 0: 현재 트렌드 (hifunny/KIOFJUDY 패턴) ─────────
+    # 의문형 영어 제목 + 신체 언급 패턴 (hifunny 최고 조회수)
+    queries += [
+        "지수 neon 세로직캠 shorts",
+        "jisoo neon fancam shorts",
+        "BLACKPINK jisoo neon stage shorts",
+        "KISS OF LIFE neon performance shorts",
+        "여자아이돌 세로직캠 뮤직뱅크 shorts",
+        "여자아이돌 세로직캠 엠카 shorts",
+        "여자아이돌 세로직캠 인기가요 shorts",
+        "kpop idol vertical fancam music show shorts",
+        "female idol music show fancam upper body shorts",
+    ]
+    for member in ["카리나", "장원영", "나띠", "화사", "유나", "사나", "지수", "제니"]:
+        queries.append(f"{member} 세로직캠 shorts")
+        queries.append(f"{member} 뮤직뱅크 직캠 shorts")
+        queries.append(f"{member} 엠카 직캠 shorts")
+
+    # ── 카테고리 1: 방송 순간포착 + 상체 포커스 ─────────────────
     for member in HOT_MEMBERS_KR[:20]:
         queries.append(f"{member} 방송 순간 shorts")
         queries.append(f"{member} 방송 클립 shorts")
