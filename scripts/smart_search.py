@@ -108,36 +108,52 @@ HOT_MEMBERS_EN = [
 ]
 
 EXCLUDE_KEYWORDS = [
-    "광고", "sponsored", "라이브 방송", "live stream",
+    "광고", "sponsored",
     "먹방", "브이로그", "vlog", "게임", "광고영상",
+    "유튜브 라이브", "youtube live",  # 유튜브 생방송(긴 영상)만 제외
 ]
 
 
 def build_search_queries(extra_keywords: list = None) -> list:
     queries = []
 
-    # ── 카테고리 1: 반전·글래머 (최우선) ──────────────────────
-    for member in HOT_MEMBERS_KR[:15]:
-        queries.append(f"{member} 반전 볼륨감 shorts")
-        queries.append(f"{member} 글래머 비율 shorts")
+    # ── 카테고리 1: 방송 순간포착 + 상체 포커스 (최우선) ────────
+    for member in HOT_MEMBERS_KR[:20]:
+        queries.append(f"{member} 방송 순간 shorts")
+        queries.append(f"{member} 방송 클립 shorts")
+        queries.append(f"{member} 상체 볼륨 shorts")
     queries += [
-        "여자아이돌 의외의 글래머 shorts",
-        "아이돌 반전 볼륨감 shorts",
-        "여자아이돌 베이글녀 shorts",
-        "아이돌 숨겨진 볼륨 shorts",
-        "여자아이돌 반전매력 볼륨감 shorts",
-        "kpop idol unexpected glamour shorts",
-        "kpop female idol hidden volume shorts",
-        "아이돌 의외의 비율 shorts",
-        "여자아이돌 글래머 반전 shorts",
-        "화사 볼륨감 shorts",
-        "권은비 볼륨 shorts",
-        "나띠 비율 shorts",
-        "유나 있지 비율 shorts",
-        "손나은 반전 shorts",
-        "아린 오마이걸 반전 shorts",
-        "서현 반전 글래머 shorts",
-        "브브걸 볼륨감 shorts",
+        "여자아이돌 방송 순간포착 shorts",
+        "아이돌 방송 볼륨 순간 shorts",
+        "여자아이돌 방송 상체 반전 shorts",
+        "아이돌 예능 볼륨감 순간 shorts",
+        "여자아이돌 방송사고 순간 shorts",
+        "아이돌 방송중 반전 볼륨 shorts",
+        "kpop idol broadcast moment shorts",
+        "kpop idol live moment glamour shorts",
+        "여자아이돌 의외의 글래머 방송 shorts",
+        "아이돌 반전 볼륨감 방송 shorts",
+        "여자아이돌 베이글녀 방송 shorts",
+        "화사 방송 볼륨감 shorts",
+        "권은비 방송 순간 shorts",
+        "나띠 방송 상체 shorts",
+        "유나 있지 방송 shorts",
+        "손나은 방송 반전 shorts",
+        "아린 방송 순간 shorts",
+        "서현 방송 글래머 shorts",
+        "브브걸 방송 볼륨 shorts",
+        "조이 방송 순간 shorts",
+        "사나 방송 클립 shorts",
+        # 음악방송 (M카운트다운, 뮤직뱅크, 인기가요 등)
+        "여자아이돌 음악방송 상체 포커스 shorts",
+        "아이돌 음악방송 볼륨 클립 shorts",
+        "여자아이돌 엠카 상체 shorts",
+        "아이돌 뮤직뱅크 순간 shorts",
+        "여자아이돌 인기가요 클립 shorts",
+        "kpop music show upper body moment shorts",
+        "kpop idol music show glamour shorts",
+        "여자아이돌 음중 순간포착 shorts",
+        "아이돌 쇼챔피언 볼륨 shorts",
     ]
 
     # ── 카테고리 2: 직캠·세로캠 ───────────────────────────────
