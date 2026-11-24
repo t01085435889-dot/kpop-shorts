@@ -7,9 +7,13 @@
 #   --analyze-only    채널 분석만 실행
 #   --download-only   다운로드만 실행
 #   --convert-only    변환만 실행
+#   --smart           스마트 탐색 모드 (바이럴 점수 기반 선별) ★
+#   --use-cached      이전 탐색 결과 재사용 (--smart 와 함께)
 #   --channel NAME    특정 채널만 처리
-#   --count N         채널당 다운로드 수 (기본: 5)
+#   --count N         다운로드 수 (기본: 10)
 #   --duration N      쇼츠 최대 길이(초) (기본: 60)
+#   --min-score N     최소 바이럴 점수 (기본: 0.1, 범위: 0~1)
+#   --keywords K...   추가 검색 키워드
 #   --no-title        제목 오버레이 없이 변환
 # ============================================================
 
@@ -36,10 +40,14 @@ error()   { log "${RED}[✗]${NC} $1"; }
 ANALYZE=true
 DOWNLOAD=true
 CONVERT=true
+SMART_MODE=false
+USE_CACHED=""
 CHANNEL_FILTER=""
-COUNT=5
+COUNT=10
 DURATION=60
+MIN_SCORE=0.1
 NO_TITLE=""
+EXTRA_KEYWORDS=""
 
 # 인자 파싱
 while [[ $# -gt 0 ]]; do
@@ -50,12 +58,23 @@ while [[ $# -gt 0 ]]; do
             ANALYZE=false; CONVERT=false; shift ;;
         --convert-only)
             ANALYZE=false; DOWNLOAD=false; shift ;;
+        --smart)
+            SMART_MODE=true; shift ;;
+        --use-cached)
+            USE_CACHED="--use-cached"; shift ;;
         --channel)
             CHANNEL_FILTER="$2"; shift 2 ;;
         --count)
             COUNT="$2"; shift 2 ;;
         --duration)
             DURATION="$2"; shift 2 ;;
+        --min-score)
+            MIN_SCORE="$2"; shift 2 ;;
+        --keywords)
+            shift
+            while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+                EXTRA_KEYWORDS="$EXTRA_KEYWORDS $1"; shift
+            done ;;
         --no-title)
             NO_TITLE="--no-title"; shift ;;
         *)
@@ -111,24 +130,41 @@ run_analyze() {
 
 # ── STEP 2: 영상 다운로드 ─────────────────────────────────────
 run_download() {
-    info "STEP 2/3: 영상 다운로드 (채널당 ${COUNT}개)"
-    echo "────────────────────────────────────────────────────────"
+    if $SMART_MODE; then
+        info "STEP 2/3: 스마트 탐색 & 다운로드 (바이럴 점수 기반, 상위 ${COUNT}개)"
+        echo "────────────────────────────────────────────────────────"
+        echo "  선별 기준:"
+        echo "    · 바이럴 속도 (views/day) 50%"
+        echo "    · 참여율 (likes+comments/views) 30%"
+        echo "    · 최신성 (14일 이내 보너스) 20%"
+        echo "    · 최소 조회수: 10,000회"
+        echo "    · 최소 점수: ${MIN_SCORE}"
+        echo ""
 
-    local extra_args=""
-    [ -n "$CHANNEL_FILTER" ] && extra_args="--channel '$CHANNEL_FILTER'"
-
-    # 분석 결과가 있으면 사용
-    if [ -f "$SCRIPT_DIR/logs/channel_analysis.json" ]; then
-        python3 "$SCRIPT_DIR/scripts/download_videos.py" \
-            --count "$COUNT" \
-            --use-analysis \
-            $( [ -n "$CHANNEL_FILTER" ] && echo "--channel '$CHANNEL_FILTER'" ) \
+        python3 "$SCRIPT_DIR/scripts/smart_download.py" \
+            --top "$COUNT" \
+            --min-score "$MIN_SCORE" \
+            $USE_CACHED \
+            $( [ -n "$EXTRA_KEYWORDS" ] && echo "--keywords $EXTRA_KEYWORDS" ) \
             2>&1 | tee -a "$LOG_FILE"
+
+        SMART_DOWNLOAD_DIR="$SCRIPT_DIR/downloads/smart"
     else
-        python3 "$SCRIPT_DIR/scripts/download_videos.py" \
-            --count "$COUNT" \
-            $( [ -n "$CHANNEL_FILTER" ] && echo "--channel '$CHANNEL_FILTER'" ) \
-            2>&1 | tee -a "$LOG_FILE"
+        info "STEP 2/3: 채널 직접 다운로드 (채널당 ${COUNT}개)"
+        echo "────────────────────────────────────────────────────────"
+
+        if [ -f "$SCRIPT_DIR/logs/channel_analysis.json" ]; then
+            python3 "$SCRIPT_DIR/scripts/download_videos.py" \
+                --count "$COUNT" \
+                --use-analysis \
+                $( [ -n "$CHANNEL_FILTER" ] && echo "--channel '$CHANNEL_FILTER'" ) \
+                2>&1 | tee -a "$LOG_FILE"
+        else
+            python3 "$SCRIPT_DIR/scripts/download_videos.py" \
+                --count "$COUNT" \
+                $( [ -n "$CHANNEL_FILTER" ] && echo "--channel '$CHANNEL_FILTER'" ) \
+                2>&1 | tee -a "$LOG_FILE"
+        fi
     fi
 
     if [ $? -eq 0 ]; then
@@ -140,7 +176,7 @@ run_download() {
 
 # ── STEP 3: 쇼츠 변환 ────────────────────────────────────────
 run_convert() {
-    info "STEP 3/3: 쇼츠 변환 (최대 ${DURATION}초)"
+    info "STEP 3/3: 쇼츠 변환 (최대 ${DURATION}초, 1080×1920)"
     echo "────────────────────────────────────────────────────────"
 
     python3 "$SCRIPT_DIR/scripts/create_shorts.py" \
