@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-레퍼런스 채널 패턴 기반 스마트 탐색
+여자 아이돌 / 남성 시청자 타겟 스마트 탐색
 
-실제 채널 분석 결과 반영:
-  - KIOFJUDY:   KISS OF LIFE 전문, 비주얼/황당/해외반응
-  - 연예덕후:   연예인 일상 클립, 반응 모음
-  - Iso_iso:    사건·이슈 재편집, 반전 사연
-  - 숏뽕닷컴:  K팝 해외반응, 블랙핑크·추성훈 등 대중적 인물
-  - hifunny:    아이돌 비주얼·웃긴 순간 (에스파·아이브·르세라핌 등)
+검색 전략:
+  1. 직캠·세로캠 (가장 높은 조회수 보장)
+  2. 비주얼·비율 충격 (hifunny 1.6M 패턴)
+  3. 댄스·퍼포먼스 하이라이트
+  4. 황당·반전·매력 순간 포착
+  5. 해외팬 반응
 """
 
 import json
@@ -17,115 +17,117 @@ import sys
 import argparse
 
 sys.path.insert(0, os.path.dirname(__file__))
-from scoring_engine import rank_videos, print_ranking, compute_score
+from scoring_engine import rank_videos, print_ranking, FEMALE_IDOLS
 
 ANALYSIS_PATH = os.path.join(os.path.dirname(__file__), '..', 'logs', 'channel_analysis.json')
 LOGS_DIR      = os.path.join(os.path.dirname(__file__), '..', 'logs')
 
-# ── 레퍼런스 채널 분석으로 확인된 아이돌/인물 ──────────────────
-CONFIRMED_IDOLS = [
-    # 직접 확인된 그룹/인물
-    "Kiss of Life", "KISS OF LIFE", "키스오브라이프",
-    "aespa", "에스파", "카리나", "윈터", "닝닝", "지젤",
-    "IVE", "아이브", "안유진", "장원영", "리즈", "레이",
-    "LE SSERAFIM", "르세라핌", "카즈하", "채원", "은채",
-    "BLACKPINK", "블랙핑크", "지수", "제니", "로제", "리사",
-    "TWICE", "트와이스", "사나", "나연", "지효",
-    "NMIXX", "엔믹스", "오해원", "설윤",
-    "NewJeans", "뉴진스", "민지", "하니", "다니엘",
-    "BTS", "방탄소년단",
-    "Stray Kids", "스트레이키즈",
-    "SEVENTEEN", "세븐틴",
-    "ENHYPEN", "엔하이픈",
-    "NCT", "엔시티",
-    # 연예인 (실제 채널에서 확인)
-    "추성훈", "김채연", "리센느",
+# ── 타겟 그룹 (조회수 검증된 그룹만) ─────────────────────────
+TARGET_GROUPS = [
+    "aespa",        "에스파",
+    "IVE",          "아이브",
+    "LE SSERAFIM",  "르세라핌",
+    "BLACKPINK",    "블랙핑크",
+    "TWICE",        "트와이스",
+    "NewJeans",     "뉴진스",
+    "KISS OF LIFE", "키스오브라이프",
+    "Red Velvet",   "레드벨벳",
+    "NMIXX",        "엔믹스",
+    "ILLIT",        "아일릿",
+    "BABYMONSTER",
+    "tripleS",
+    "Kep1er",
 ]
 
-# ── 히트 패턴별 검색 쿼리 템플릿 ──────────────────────────────
-# 실제 채널의 인기 영상 패턴 그대로 반영
-QUERY_TEMPLATES = [
-    # 비주얼 충격 (hifunny 1.6M뷰 패턴)
-    "{idol} pretty fancam shorts",
-    "{idol} 직캠 세로캠 shorts",
-    "{idol} 비주얼 충격 shorts",
-    "아이돌 비주얼 top tier shorts",
-
-    # 황당/반전 (KIOFJUDY 3.4M뷰 패턴)
-    "{idol} 황당 반응 shorts",
-    "{idol} unexpected reaction shorts",
-    "아이돌 반전 모음 shorts",
-    "아이돌 말실수 황당 shorts",
-
-    # 해외 시각 (숏뽕닷컴 899K 패턴)
-    "{idol} 해외반응 shorts",
-    "{idol} foreigner reaction shorts",
-    "K팝 해외반응 모음 shorts",
-    "kpop reaction compilation shorts",
-
-    # 궁금증 유발 (숏뽕닷컴 "못하는 이유" 패턴)
-    "아이돌 {action} 이유 shorts",
-    "{idol} 다른 이유 shorts",
-    "아이돌 왜 shorts",
-
-    # 감동/눈물 (숏뽕닷컴 추성훈 230K 패턴)
-    "아이돌 감동 눈물 shorts",
-    "연예인 감동 순간 shorts",
-
-    # 재미 (hifunny 채널 전체 패턴)
-    "{idol} funny moment shorts",
-    "{idol} 웃긴 순간 shorts",
-    "아이돌 예능 웃긴 shorts",
-
-    # 직접 채널 패턴 복제
-    "키스오브라이프 쇼츠",
-    "에스파 쇼츠",
-    "아이브 쇼츠",
-    "르세라핌 쇼츠",
-    "블랙핑크 쇼츠",
-    "트와이스 쇼츠",
+# 영어 그룹명만 (해외 검색용)
+EN_GROUPS = [
+    "aespa", "IVE", "LE SSERAFIM", "BLACKPINK",
+    "TWICE", "NewJeans", "KISS OF LIFE", "Red Velvet",
+    "NMIXX", "ILLIT", "BABYMONSTER",
 ]
 
-# 쿼리에 넣을 아이돌 (상위 인기 그룹만)
-FILL_IDOLS = [
-    "KISS OF LIFE", "aespa", "IVE", "LE SSERAFIM",
-    "BLACKPINK", "TWICE", "NewJeans", "NMIXX",
+# 인기 멤버 (단독 검색용)
+HOT_MEMBERS = [
+    "카리나", "karina",
+    "안유진", "장원영", "wonyoung",
+    "카즈하", "kazuha",
+    "제니", "jennie", "리사", "lisa",
+    "사나", "sana", "쯔위", "tzuyu",
+    "하니", "hani",
+    "벨",
 ]
 
-FILL_ACTIONS = ["못하는", "포기", "다른", "진짜"]
-
-EXCLUDE_KEYWORDS = ["광고", "sponsored", "advertisement", "라이브 방송", "live stream"]
+EXCLUDE_KEYWORDS = ["광고", "sponsored", "라이브 방송", "live stream", "먹방", "브이로그", "vlog"]
 
 
-def build_search_queries() -> list:
+def build_search_queries(extra_keywords: list = None) -> list:
     queries = []
 
-    # 아이돌 × 쿼리 템플릿 조합
-    for template in QUERY_TEMPLATES:
-        if "{idol}" in template and "{action}" not in template:
-            for idol in FILL_IDOLS[:5]:
-                queries.append(template.format(idol=idol))
-        elif "{action}" in template:
-            for idol in FILL_IDOLS[:3]:
-                for action in FILL_ACTIONS[:2]:
-                    queries.append(template.format(idol=idol, action=action))
-        else:
-            queries.append(template)
+    # ── 카테고리 1: 직캠·세로캠 (최우선) ────────────────────────
+    for group in TARGET_GROUPS[:10]:
+        queries.append(f"{group} 직캠 shorts")
+        queries.append(f"{group} fancam shorts")
+    for group in EN_GROUPS[:6]:
+        queries.append(f"{group} 4K fancam vertical shorts")
+    queries += [
+        "여자아이돌 직캠 모음 shorts",
+        "kpop female idol fancam compilation shorts",
+        "아이돌 세로캠 4K shorts",
+    ]
 
-    # 채널 분석 결과 키워드 추가
-    if os.path.exists(ANALYSIS_PATH):
-        try:
-            with open(ANALYSIS_PATH, 'r', encoding='utf-8') as f:
-                analysis = json.load(f)
-            for ch in analysis:
-                for kw in ch.get('title_patterns', {}).get('top_keywords', [])[:5]:
-                    word = kw['word']
-                    if len(word) >= 2:
-                        queries.append(f"{word} shorts")
-        except Exception:
-            pass
+    # ── 카테고리 2: 비주얼·비율 (hifunny 패턴) ─────────────────
+    for group in TARGET_GROUPS[:8]:
+        queries.append(f"{group} 비주얼 shorts")
+    for member in HOT_MEMBERS[:8]:
+        queries.append(f"{member} 비율 shorts")
+    queries += [
+        "여자아이돌 비율 레전드 shorts",
+        "kpop idol pretty moments shorts",
+        "아이돌 미모 충격 shorts",
+        "female idol visual compilation shorts",
+    ]
 
-    # 중복 제거 + 순서 유지
+    # ── 카테고리 3: 댄스·퍼포먼스 ──────────────────────────────
+    for group in EN_GROUPS[:6]:
+        queries.append(f"{group} dance performance shorts")
+    queries += [
+        "여자아이돌 댄스 치명적 shorts",
+        "kpop girl group sexy dance shorts",
+        "아이돌 안무 명장면 shorts",
+        "여자아이돌 걸크러쉬 무대 shorts",
+        "kpop female idol powerful stage shorts",
+    ]
+
+    # ── 카테고리 4: 매력 순간 포착 (반전·황당) ─────────────────
+    for group in TARGET_GROUPS[:6]:
+        queries.append(f"{group} 황당 반응 shorts")
+    queries += [
+        "아이돌 반전 매력 shorts",
+        "kpop idol unexpected charming moment shorts",
+        "여자아이돌 치명적 순간 shorts",
+        "아이돌 귀여운 반응 모음 shorts",
+        "kpop idol cute reaction compilation shorts",
+    ]
+
+    # ── 카테고리 5: 해외반응 ────────────────────────────────────
+    for group in EN_GROUPS[:5]:
+        queries.append(f"{group} foreigner reaction shorts")
+    queries += [
+        "kpop female idol reaction shorts",
+        "여자아이돌 해외반응 shorts",
+        "non kpop fan reacts female idol shorts",
+    ]
+
+    # ── 카테고리 6: 멤버 단독 ───────────────────────────────────
+    for member in HOT_MEMBERS[:10]:
+        queries.append(f"{member} shorts")
+
+    # ── 추가 키워드 ─────────────────────────────────────────────
+    if extra_keywords:
+        for kw in extra_keywords:
+            queries.insert(0, f"{kw} shorts")
+
+    # 중복 제거
     seen, unique = set(), []
     for q in queries:
         if q not in seen:
@@ -136,14 +138,12 @@ def build_search_queries() -> list:
 
 
 def search_youtube(query: str, max_results: int = 20) -> list:
-    search_url = f"ytsearch{max_results}:{query} #shorts"
-
     cmd = [
         'python3', '-m', 'yt_dlp',
         '--flat-playlist',
         '--dump-single-json',
         '--no-warnings',
-        search_url
+        f"ytsearch{max_results}:{query} #shorts"
     ]
 
     try:
@@ -159,16 +159,13 @@ def search_youtube(query: str, max_results: int = 20) -> list:
     except json.JSONDecodeError:
         return []
 
-    entries = data.get('entries', []) or []
     videos = []
-
-    for e in entries:
+    for e in (data.get('entries') or []):
         if not e:
             continue
         title = e.get('title', '') or ''
         if any(ex.lower() in title.lower() for ex in EXCLUDE_KEYWORDS):
             continue
-
         vid_id = e.get('id', '')
         videos.append({
             'id':            vid_id,
@@ -183,42 +180,39 @@ def search_youtube(query: str, max_results: int = 20) -> list:
             'channel':       e.get('channel', ''),
             'search_query':  query,
         })
-
     return videos
 
 
 def run_smart_search(max_per_query: int = 15, top_n: int = 20,
                      extra_keywords: list = None, verbose: bool = True) -> list:
-    queries = build_search_queries()
-
-    if extra_keywords:
-        for kw in extra_keywords:
-            queries.insert(0, f"{kw} shorts")
+    queries = build_search_queries(extra_keywords)
 
     if verbose:
-        print(f"\n검색 쿼리 {len(queries)}개 준비")
-        print("  카테고리별 쿼리 예시:")
-        for q in queries[:8]:
+        print(f"\n검색 쿼리 {len(queries)}개")
+        cats = ["직캠·세로캠", "비주얼·비율", "댄스·퍼포먼스", "매력순간", "해외반응", "멤버단독"]
+        print(f"  카테고리: {' / '.join(cats)}")
+        print("  예시:")
+        for q in queries[:6]:
             print(f"    · {q}")
-        print(f"    ... 외 {max(0, len(queries)-8)}개")
+        print(f"    ... 외 {len(queries)-6}개\n")
 
     all_videos = {}
 
     for i, query in enumerate(queries, 1):
         if verbose:
-            print(f"\n[{i}/{len(queries)}] {query}")
+            print(f"[{i:>3}/{len(queries)}] {query}")
 
         videos = search_youtube(query, max_results=max_per_query)
-        new = sum(1 for v in videos if v['id'] and v['id'] not in all_videos)
+        new = 0
         for v in videos:
             if v['id'] and v['id'] not in all_videos:
                 all_videos[v['id']] = v
+                new += 1
 
-        if verbose:
-            print(f"  → {len(videos)}개 발견 / {new}개 신규 (누적 {len(all_videos)}개)")
+        if verbose and new > 0:
+            print(f"       → {new}개 신규 (누적 {len(all_videos)}개)")
 
     all_list = list(all_videos.values())
-
     if verbose:
         print(f"\n총 수집: {len(all_list)}개")
 
@@ -228,15 +222,16 @@ def run_smart_search(max_per_query: int = 15, top_n: int = 20,
         print(f"필터 탈락: {len(filtered)}개 | 최종 선별: {len(ranked)}개")
         print_ranking(ranked)
 
-        # 패턴 분포 출력
-        pattern_dist = {}
+        # 패턴 분포
+        dist = {}
         for v in ranked:
             for p in v.get('matched_patterns', []):
-                pattern_dist[p] = pattern_dist.get(p, 0) + 1
-        if pattern_dist:
+                dist[p] = dist.get(p, 0) + 1
+        if dist:
             print("\n선별 영상 패턴 분포:")
-            for pat, cnt in sorted(pattern_dist.items(), key=lambda x: -x[1]):
-                print(f"  {pat}: {cnt}개")
+            for p, c in sorted(dist.items(), key=lambda x: -x[1]):
+                bar = "█" * c
+                print(f"  {p:<20} {bar} {c}개")
 
     return ranked
 
@@ -245,33 +240,27 @@ def save_results(ranked: list, path: str = None) -> str:
     if not path:
         path = os.path.join(LOGS_DIR, 'smart_search_results.json')
     os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    output = []
-    for v in ranked:
-        output.append({
-            'rank':             ranked.index(v) + 1,
-            'score':            v.get('score'),
-            'title':            v.get('title'),
-            'url':              v.get('webpage_url') or v.get('url'),
-            'views':            v.get('views') or v.get('view_count'),
-            'viral_speed':      v.get('viral_speed'),
-            'engagement':       v.get('engagement'),
-            'title_score':      v.get('title_score'),
-            'matched_patterns': v.get('matched_patterns'),
-            'days_old':         v.get('days_old'),
-            'channel':          v.get('channel'),
-            'search_query':     v.get('search_query'),
-        })
-
+    output = [{
+        'rank':             i + 1,
+        'score':            v.get('score'),
+        'title':            v.get('title'),
+        'url':              v.get('webpage_url') or v.get('url'),
+        'views':            v.get('views') or v.get('view_count'),
+        'viral_speed':      v.get('viral_speed'),
+        'engagement':       v.get('engagement'),
+        'title_score':      v.get('title_score'),
+        'matched_patterns': v.get('matched_patterns'),
+        'days_old':         v.get('days_old'),
+        'channel':          v.get('channel'),
+    } for i, v in enumerate(ranked)]
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
-
     print(f"\n✅ 결과 저장 → {path}")
     return path
 
 
 def main():
-    parser = argparse.ArgumentParser(description='스마트 쇼츠 탐색')
+    parser = argparse.ArgumentParser()
     parser.add_argument('--top', type=int, default=20)
     parser.add_argument('--per-query', type=int, default=15)
     parser.add_argument('--keywords', nargs='+')
@@ -279,7 +268,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("스마트 탐색 (레퍼런스 채널 패턴 적용)")
+    print("여자 아이돌 쇼츠 스마트 탐색")
     print("=" * 60)
 
     ranked = run_smart_search(
